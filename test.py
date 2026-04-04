@@ -109,7 +109,7 @@ class CalendarUI:
 
     def setup_ui(self):
         # Ορίζουμε την συμπεριφορά του grid layout με weights
-        self.root.grid_rowconfigure(0, weight=0) # Το πάνω μέρος του παραθύρου μένει σταθερό
+        self.root.grid_rowconfigure(0, weight=0, minsize=340) # Το πάνω μέρος του παραθύρου μένει σταθερό, με minsize ώστε να παραμένει και όταν έχω λιγότερες σειρές
         self.root.grid_rowconfigure(1, weight=1) # Το κάτω μέρος του παραθύρου μένει σταθερό
         self.root.grid_columnconfigure(0, weight=2) # Το αριστερό μέρος του παραθύρου είναι ελαστικό και κλέβει τον πιο πολύ χώρο
         self.root.grid_columnconfigure(1, weight=1) # Το δεξί μέρος του παραθύρου είναι και αυτό ελαστικό αλλά του αναλογεί πιο λίγος χώρος
@@ -136,7 +136,6 @@ class CalendarUI:
         in_grid_container.grid_columnconfigure(1, weight=1) # Ελαστικότητα στην στήλη 1 (Κουτάκια Εισαγωγής)
 
         # Μετά αφήνω τα πεδία input όπως πριν απλά τα κάνω "παιδιά" του in_grid_container
-        # Τα width σε customtkinter είναι σε px αντί για πλήθος char, άρα τα προσάρμόζω
         ctk.CTkLabel(in_grid_container, text="Τίτλος:").grid(row=0, column=0, sticky="w")
         self.ent_title = ctk.CTkEntry(in_grid_container)
         self.ent_title.grid(row=0, column=1, sticky="we", pady=2)
@@ -195,7 +194,7 @@ class CalendarUI:
         self.summary_frame.grid(row = 1, column=1, padx=5, pady=(0,10), sticky="nsew")
         self.summary_label = ctk.CTkLabel(master = self.summary_frame ,text="Σύνοψη Ημέρας", font=('Arial', 14, 'bold'))
         self.summary_label.pack(pady=5)
-        
+
         self.summary_txt = ctk.CTkTextbox(self.summary_frame, state="disabled", fg_color="transparent") # disabled για read-only
         self.summary_txt.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -208,13 +207,13 @@ class CalendarUI:
         # Προσαρμογή σε customtkinter (χωρίς φυτεμένο label στο frame)
         # Διόρθωση root σε self.root ώστε να αλλάζει δυναμικα;
         self.calendar_frame = ctk.CTkFrame(master = self.calendar_container, fg_color="transparent")
-        self.calendar_frame.pack(fill="x", padx=10, expand=True)
+        self.calendar_frame.pack(fill="x", padx=10, anchor="n", expand=True)
         self.label = ctk.CTkLabel(master = self.calendar_frame ,text="Ημερολόγιο", font=('Arial', 14, 'bold'))
-        self.label.pack(pady=2, padx=10, fill="x", anchor="w")
+        self.label.pack(pady=2, padx=10, fill="x")
 
         # Ένα container για τα κουμπιά πλοήγησης
         nav_frame = ctk.CTkFrame(master = self.calendar_frame, fg_color= "transparent")
-        nav_frame.pack(pady=5, padx=10)
+        nav_frame.pack(pady=5, padx=10, anchor="n")
 
         # Νεα κουμπιά με όνομα Μήνα / Χρονιάς ανάμεσα στα κουμπιά
         # Ένα ενιαίο "pill" frame για τον Μήνα
@@ -223,8 +222,9 @@ class CalendarUI:
         # Κουμπί < Μήνα (padx αριστερά για να μην "κοβει" το rounded corner)
         ctk.CTkButton(nav_month, text="<", width=30, text_color="black", fg_color="transparent", hover_color="#C8C8C8",
                         command=lambda: self.change_month(-1)).pack(side="left", padx=(10, 0))
-        # Label Μήνα με ένα σταθερό πλάτος (width=80)
-        ctk.CTkLabel(nav_month, text=f"{self.months_desc[self.current_month]}", width=80, text_color="black", font=('Arial', 12, 'bold')).pack(side="left")
+        # NEW BUTTON για zoom out Μήνα με ένα σταθερό πλάτος (width=80)
+        ctk.CTkButton(nav_month, text=f"{self.months_desc[self.current_month]}", width=80, text_color="black", font=('Arial', 12, 'bold'), fg_color="transparent", hover_color="#C8C8C8",
+                        command=lambda: self.show_months()).pack(side="left")
         # Κουμπί > Μήνα (padx δεξιά για να μην "κοβει" το rounded corner)
         ctk.CTkButton(nav_month, text=">", width=30, text_color="black", fg_color="transparent", hover_color="#C8C8C8",
                         command=lambda: self.change_month(1)).pack(side="left", padx=(0, 10)) # Με λίγο padx για κενό
@@ -242,17 +242,17 @@ class CalendarUI:
                         command=lambda: self.change_year(1)).pack(side="left", padx=(5, 10))
         
         # Για customtkinter κάνω pack ακόμα ένα container του grid των κουμπιών
-        cal_grid_container = ctk.CTkFrame(master = self.calendar_frame, fg_color="transparent")#Το border το έχουμε προσορινά για να μας βοηθά στην δημιουργία του UI
-        cal_grid_container.pack(pady=5, padx=10, fill="both", expand=True)
+        self.cal_grid_container = ctk.CTkFrame(master = self.calendar_frame, fg_color="transparent")#Το border το έχουμε προσορινά για να μας βοηθά στην δημιουργία του UI
+        self.cal_grid_container.pack(pady=5, padx=10, fill="both", expand=True)
         
         #Το uniform="group1" θα δίνει ίδιο πλάτος για όλα
         for i in range(7):
-            cal_grid_container.grid_columnconfigure(i, weight=1, uniform="group1")
+            self.cal_grid_container.grid_columnconfigure(i, weight=1, uniform="group1")
 
         # Επικεφαλίδες ημερών (Δευ, Τρι κλπ)
         days_of_week = ["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"]
         for i, day in enumerate(days_of_week):
-            ctk.CTkLabel(cal_grid_container, text=day, font=('Arial', 14, 'bold')).grid(row=0, column=i, pady=(0, 5), sticky="we")
+            ctk.CTkLabel(self.cal_grid_container, text=day, font=('Arial', 14, 'bold')).grid(row=0, column=i, pady=(0, 5), sticky="we")
 
         # Δημιουργία των ημερών του μήνα
         month_table = calendar.monthcalendar(self.current_year, self.current_month)
@@ -260,13 +260,46 @@ class CalendarUI:
             for c, day in enumerate(week):
                 if day != 0:
                     # Σύνδεση με τη συμπλήρωση των πεδίων (προαιρετικό αλλά χρήσιμο)
-                    # Για την customtkinter μπήκε width σε px
-                    btn = ctk.CTkButton(cal_grid_container, text=str(day), 
-                                        width=60, 
-                                        height=30,
-                                    command=lambda d=day: self.fill_entries_from_cal(d))
+                    btn = ctk.CTkButton(self.cal_grid_container, text=str(day), width=40,  
+                                        command=lambda d=day: self.fill_entries_from_cal(d)) # Διέγραψα το height
                     btn.grid(row=r+1, column=c, padx=3, pady=3, sticky="we")
-    
+    def show_months(self):
+        # Καταστρέφουμε τα κουμπιά που περιέχουν ημέρες (παιδιά της cal_grid_container)
+        for item in self.cal_grid_container.winfo_children():
+            item.destroy()
+        
+        # Ακυρώνουμε την ελαστικότητα στις στήλες 4,5,6 που υπάρχει από calendar_inframe, και την κρατάμε για 0,1,2,3
+        for i in range(7):
+            if i < 4:
+                self.cal_grid_container.grid_columnconfigure(i, weight=1, uniform="group2")
+            else:
+                self.cal_grid_container.grid_columnconfigure(i, weight=0, uniform="")
+
+        # Επανάληψη για την δημιουργία των μηνών μέσα στο grid
+        for month in range(1, 13):
+                    # (Τρόπος χωρίσματος σε grid όπως θα έφτιαχνε κάποιος μια σκακιέρα)
+                    month_idx = month - 1 # index για τον μήνα π.χ. 0 για Ιανουάριο, 1 για Φεβρουάριο κτλ
+                    # Ακέραιη διαίρεση με 4 για την σειρά (0//4 = 0, 1//4 = 0, ..., 4//4 = 1)
+                    r = month_idx // 4
+                    # Modulo με 4 για την στήλη (0%4 = 0, 1%4 = 1, ..., 4%4 = 0)
+                    c = month_idx % 4
+                    
+                    # Παίρνω το όνομα του μήνα που θα μπει στο κουμπί
+                    curr_month_btn = self.months_desc[month]
+                    
+                    # Δημιουργία του κουμπιού
+                    btn = ctk.CTkButton(self.cal_grid_container, text=curr_month_btn, 
+                                        command=lambda m=month: self.select_month(m))
+                    # Placement στο grid
+                    btn.grid(row=r, column=c, padx=3, pady=3, sticky="we")  
+
+    def select_month(self, selected_month):
+        """Μέθοδος για μεταπήδηση σε συγκεκριμένο μήνα στο calendar grid"""
+        # Αλλαγή του current μήνα
+        self.current_month = selected_month
+        # Καλούμε την συνάρτηση που θα ξανά ζωγραφίσει το ημερολόγιο
+        self.calendar_inframe()
+
     def change_month(self, delta):
         """Μέθοδος για αλλαγή μήνα"""
         self.current_month += delta
@@ -345,8 +378,6 @@ class CalendarUI:
             
             self.ent_time_start.delete(0, "end"); self.ent_time_start.insert(0, time_start)
             self.ent_time_end.delete(0, "end"); self.ent_time_end.insert(0, time_end)
-
-
 
     def save_event(self):
         try:
