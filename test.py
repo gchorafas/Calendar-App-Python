@@ -74,7 +74,7 @@ class CalendarDB:
     def new_event(self, event):
         """Εισαγωγή νέου γεγονότος."""
         #Ένα query το οποίο κάνει εισαγωγή στοιχείων στη βάση
-        qr = "INSERT INTO CalendarApp (Title, Description, Event_str, Event_fsh) VALUES (?,?,?,?)"
+        qr = "INSERT INTO CalendarApp (Title, Description, Event_str, Event_fsh, Notification) VALUES (?,?,?,?,?)"
         data = (
             #Το event είναι το αντικείμένο που κληρονομεί από την κλάση Event 
             event.title,
@@ -114,6 +114,7 @@ class CalendarUI:
         self.db = CalendarDB()
         self.setup_ui()
         self.refresh_view()
+        self.update_countdowns()
 
     def setup_ui(self):
         # Ορίζουμε την συμπεριφορά του grid layout με weights
@@ -185,12 +186,13 @@ class CalendarUI:
         self.tree_frame = ctk.CTkFrame(self.root)
         self.tree_frame.grid(row = 1, column=0, padx=5, pady=(0,10), sticky="nsew")
 
-        self.tree = ttk.Treeview(self.tree_frame, columns=("ID","Τίτλος", "Σχόλιο", "Έναρξη", "Διάρκεια"), show='headings')
+        self.tree = ttk.Treeview(self.tree_frame, columns=("ID","Τίτλος", "Σχόλιο", "Έναρξη", "Διάρκεια", "Notification"), show='headings')
         self.tree.heading("ID", text="ID")
         self.tree.heading("Τίτλος", text="Τίτλος")
         self.tree.heading("Σχόλιο", text="Σχόλιο")
         self.tree.heading("Έναρξη", text="Έναρξη")
         self.tree.heading("Διάρκεια", text="Διάρκεια")
+        self.tree.heading("Notification", text="Ειδοποίηση")
 
         self.tree.column("ID", width=0, stretch=False, anchor="center")
         self.tree.pack(fill="both", expand=True, padx=10, pady=10)
@@ -460,6 +462,53 @@ class CalendarUI:
             # Εισαγωγή δεδομένων DB και διάρκειας στο tree
             self.tree.insert("", "end", values=(row[0], row[1], row[2], row[3], temp_ev.get_duration(), status_text))
             #Για την εισαγωγή και εμφάνηση του ID θα πρέπει να φέρουμε και το row[0] μέσα στα values
+    
+    def update_countdowns(self):
+        now = datetime.now()
+    
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, 'values'))
+            event_id = values[0]
+            start_str = values[3]
+            current_status = values[5] # Η στήλη Notification 
+
+            try:
+                start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M')
+            
+                # ΑΝ Ο ΧΡΟΝΟΣ ΤΕΛΕΙΩΣΕ (ή πέρασε)
+                if now >= start_dt:
+                    # Έλεγχος: Αν στη βάση/πίνακα φαίνεται ακόμα ως ενεργό 1 
+                    if current_status == "1":
+                        # 1. Ενημέρωση της Βάσης Δεδομένων
+                    
+                        # 2. Ενημέρωση του UI (Πίνακα)
+                        values[6] = "-" 
+                        values[5] = "Ξεκίνησε!"
+                        self.tree.item(item, values=values)
+                    
+                        print(f"Το συμβάν {event_id} απενεργοποιήθηκε στη βάση.")
+                    else:
+                        # Αν είναι ήδη 0, απλά γράψε "Σε εξέλιξη"
+                        values[5] = "Σε εξέλιξη..."
+                        self.tree.item(item, values=values)
+                        self.db.cursor.execute("UPDATE CalendarApp SET Notification = 0 WHERE ID = ?", (event_id,))
+                        self.db.conn.commit()
+            
+                else:
+                    # Αν είναι ακόμα στο μέλλον, δείξε την αντίστροφη μέτρηση
+                    diff = start_dt - now
+                    hours, remainder = divmod(diff.seconds, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    values[5] = f"{diff.days}ημ {hours:02d}:{minutes:02d}:{seconds:02d}"
+                    self.tree.item(item, values=values)
+
+            except Exception as e:
+                print(f"Σφάλμα στο countdown: {e}")
+                continue
+
+        # Επανάληψη ανά δευτερόλεπτο
+        self.root.after(1000, self.update_countdowns)
+
 if __name__ == "__main__":
     root = ctk.CTk()
     app = CalendarUI(root)
