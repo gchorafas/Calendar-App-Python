@@ -8,8 +8,14 @@ import calendar
 
 # Maybe use this colour for the theme later? "#D3C4B7"
 
-ctk.set_appearance_mode("light")  # Προσαρμογή σε system theme
+# Βασικές ρυθμίσεις εμφάνισης
+ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue") # Μπορούμε να αλλάξουμε σε green ή dark-blue
+
+# Χρώματα θέματος
+SAND_COLOR = "#D3C4B7"  
+ACTIVE_EVENT_COLOR = "#2ecc71" # Πράσινο για ενεργά
+IDLE_EVENT_COLOR = "#95a5a6"   # Γκρι για ανενεργά
 
 # --- 1. ΜΟΝΤΕΛΟ ΔΕΔΟΜΕΝΩΝ (MODEL) ---
 class Event:
@@ -111,7 +117,7 @@ class CalendarUI:
         self.events_memory = {} # Το λεξικό που θα κρατάει ID, start_dt, end_dt
         self.root = root
         self.root.title("Project 22 - Ηλεκτρονικό Ημερολόγιο")
-        self.root.geometry("1300x600")
+        self.root.geometry("1300x650")
         self.db = CalendarDB()
         self.setup_ui()
         self.refresh_view()
@@ -119,7 +125,7 @@ class CalendarUI:
 
     def setup_ui(self):
         # Ορίζουμε την συμπεριφορά του grid layout με weights
-        self.root.grid_rowconfigure(0, weight=0, minsize=340) # Το πάνω μέρος του παραθύρου μένει σταθερό, με minsize ώστε να παραμένει και όταν έχω λιγότερες σειρές
+        self.root.grid_rowconfigure(0, weight=0, minsize=360) # Το πάνω μέρος του παραθύρου μένει σταθερό, με minsize ώστε να παραμένει και όταν έχω λιγότερες σειρές
         self.root.grid_rowconfigure(1, weight=1) # Το κάτω μέρος του παραθύρου μένει σταθερό
         self.root.grid_columnconfigure(0, weight=2) # Το αριστερό μέρος του παραθύρου είναι ελαστικό και κλέβει τον πιο πολύ χώρο
         self.root.grid_columnconfigure(1, weight=1) # Το δεξί μέρος του παραθύρου είναι και αυτό ελαστικό αλλά του αναλογεί πιο λίγος χώρος
@@ -141,7 +147,12 @@ class CalendarUI:
         self.tree.heading("Διάρκεια", text="Διάρκεια")
         self.tree.heading("Notification", text="Ειδοποίηση")
 
-        self.tree.pack(fill="both", expand=True, padx=10, pady=10)
+        # Fixed πλάτος για στήλες
+        self.tree.column("Έναρξη", width=130, anchor="center")
+        self.tree.column("Διάρκεια", width=80, anchor="center")
+        self.tree.column("Notification", width=150, anchor="center")
+
+        self.tree.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Όταν αφήνει ο χρήστης το mouse-1 πάνω σε μία εγγραφή, γεμίζω τα entries τα στοιχεία της
         self.tree.bind("<ButtonRelease-1>", self.fill_entries_from_event)
@@ -149,19 +160,25 @@ class CalendarUI:
         # ΚΑΤΩ ΔΕΞΙΑ [Frame Summary ημέρας]----------------------------------------------
         self.summary_frame = ctk.CTkFrame(self.root)
         self.summary_frame.grid(row = 1, column=1, padx=5, pady=(0,10), sticky="nsew")
-        self.summary_label = ctk.CTkLabel(master = self.summary_frame ,text="Σύνοψη Ημέρας", font=('Arial', 14, 'bold'))
-        self.summary_label.pack(pady=5)
 
-        self.insert_button = ctk.CTkButton(self.summary_frame, text="Αποθήκευση", command="")
-        self.insert_button.pack(side = "left", padx=40)
+        # Frame για Περιγραφή του box "Σύνοψη" και button "Εκκαθαριση Πεδίων"
+        summary_top_frame = ctk.CTkFrame(self.summary_frame, fg_color="transparent")
+        summary_top_frame.pack(fill="x", pady=5)
 
-        self.summary_txt = ctk.CTkTextbox(self.summary_frame, state="disabled", fg_color="transparent") # disabled για read-only
+        # Label Σύνοψης
+        self.summary_label = ctk.CTkLabel(master=summary_top_frame, text="Σύνοψη Ημέρας", font=('Arial', 14, 'bold'))
+        self.summary_label.pack(side="left", padx=10, pady=5)
+
+        self.clear_btn = ctk.CTkButton(summary_top_frame, text="Εκκαθάριση Πεδίων", width=120, command=self.clear_entries, fg_color="#e74c3c", hover_color="#c0392b")
+        self.clear_btn.pack(side="right", padx=10, pady=5)
+
+        self.summary_txt = ctk.CTkTextbox(self.summary_frame, state="disabled", fg_color="#F9F9F9", text_color="black", font=('Arial', 13)) 
         self.summary_txt.pack(fill="both", expand=True, padx=10, pady=10)
 
     def calendar_inframe(self):
 
         self.calendar_container = ctk.CTkFrame(self.root)
-        self.calendar_container.grid(row=0, column=0, pady=10, padx=5, sticky="nsew")
+        self.calendar_container.grid(row=0, column=0, pady=10, padx=10, sticky="nsew")
         # ΕΛΕΓΧΟΣ: Αν υπάρχει ήδη το frame, το διαγράφουμε πριν το ξαναφτιάξουμε
         if hasattr(self, 'calendar_frame'):
             self.calendar_frame.destroy()
@@ -179,7 +196,7 @@ class CalendarUI:
 
         # Νεα κουμπιά με όνομα Μήνα / Χρονιάς ανάμεσα στα κουμπιά
         # Ένα ενιαίο "pill" frame για τον Μήνα
-        nav_month = ctk.CTkFrame(master = nav_frame, fg_color= "#E9E9E9", corner_radius=15)
+        nav_month = ctk.CTkFrame(master = nav_frame, fg_color= SAND_COLOR, corner_radius=15)
         nav_month.grid(row=0, column=0, padx=10) # padx δημιουργεί κενό ανάμεσα στα δύο pill Μήνας / Έτος)
 
 
@@ -194,7 +211,7 @@ class CalendarUI:
                         command=lambda: self.change_month(1)).pack(side="left", padx=(0, 10)) # Με λίγο padx για κενό
         
         # Ένα ενιαίο "pill" frame για το Έτος
-        nav_year = ctk.CTkFrame(master = nav_frame, fg_color= "#E9E9E9", corner_radius=15)
+        nav_year = ctk.CTkFrame(master = nav_frame, fg_color= SAND_COLOR, corner_radius=15)
         nav_year.grid(row=0, column=1)        
         # Κουμπί < Έτους
         ctk.CTkButton(nav_year, text="<", width=30, text_color="black", fg_color="transparent", hover_color="#C8C8C8",
@@ -244,18 +261,21 @@ class CalendarUI:
         for r, week in enumerate(month_table):
             for c, day in enumerate(week):
                 if day != 0:
-                    button_color = "#3b8ed0"
+                    button_color = "#E0E0E0"
+                    txt_color = "black"
 
                     if day in events_lookup:
                         if int(events_lookup[day]) == 1: # Cast ως int
-                            button_color = "green"
+                            button_color = ACTIVE_EVENT_COLOR
+                            txt_color = "white"
                         else:
-                            button_color = "gray"
+                            button_color = IDLE_EVENT_COLOR
+                            txt_color = "white"
 
                     # Σύνδεση με τη συμπλήρωση των πεδίων (προαιρετικό αλλά χρήσιμο)
-                    btn = ctk.CTkButton(self.cal_grid_container, text=str(day), width=40,
-                                        fg_color= button_color,
-                                        hover_color="#34495e",  
+                    btn = ctk.CTkButton(self.cal_grid_container, text=str(day), width=40, height=35,
+                                        fg_color=button_color, text_color=txt_color,
+                                        hover_color=SAND_COLOR, 
                                         command=lambda d=day: self.fill_entries_from_cal(d)) # Διέγραψα το height
                     btn.grid(row=r+1, column=c, padx=3, pady=3, sticky="we")
 
@@ -307,13 +327,31 @@ class CalendarUI:
         
         # Κουμπιά Ενεργειών
         btn_frame = ctk.CTkFrame(in_grid_container)
-        btn_frame.grid(row=5, columnspan=2, pady=10, sticky="we") # we για stretch δεξιά/αριστερά
+        btn_frame.grid(row=5, columnspan=2, pady=20, sticky="we") # we για stretch δεξιά/αριστερά
 
         # Προσαρμογή buttons για customtkinter
-        ctk.CTkButton(btn_frame, text="Αποθήκευση", command=self.save_event, fg_color="green", text_color="white").pack(side="left", padx=2, expand=True)
-        ctk.CTkButton(btn_frame, text="Διαγραφή Επιλεγμένου", command=self.delete_selected, fg_color="red", text_color="white").pack(side="left", padx=2, expand=True)
-        ctk.CTkButton(btn_frame, text="Συμβάντα", command=self.refresh_view, fg_color="blue", text_color="white").pack(side="left", padx=2, expand=True)        
+        ctk.CTkButton(btn_frame, text="Αποθήκευση", command=self.save_event, fg_color="#27ae60", hover_color="#2ecc71", text_color="white").pack(side="left", padx=5, expand=True)
+        ctk.CTkButton(btn_frame, text="Διαγραφή", command=self.delete_selected, fg_color="#c0392b", hover_color="#e74c3c", text_color="white").pack(side="left", padx=5, expand=True)
+        ctk.CTkButton(btn_frame, text="Εμφάνιση Όλων", command=self.refresh_view, fg_color="#2980b9", hover_color="#3498db", text_color="white").pack(side="left", padx=5, expand=True)        
 
+    def clear_entries(self):
+        """Καθαρίζει τα πεδία εισαγωγής και το TextBox της σύνοψης"""
+        self.ent_title.delete(0, "end")
+        self.ent_comment.delete(0, "end")
+        self.ent_day.delete(0, "end")
+        self.ent_month.delete(0, "end")
+        self.ent_year.delete(0, "end")
+        self.ent_time_start.delete(0, "end")
+        self.ent_time_end.delete(0, "end")
+        self.update_summary_box("Επιλέξτε ένα γεγονός από την λίστα ή από το ημερολόγιο για σύνοψη.")
+        self.refresh_view()
+
+    def update_summary_box(self, text):
+        """Βοηθητική μέθοδος για την ενημέρωση του TextBox σύνοψης"""
+        self.summary_txt.configure(state="normal")
+        self.summary_txt.delete("1.0", "end")
+        self.summary_txt.insert("1.0", text)
+        self.summary_txt.configure(state="disabled")
 
     def show_months(self):
         # Καταστρέφουμε τα κουμπιά που περιέχουν ημέρες (παιδιά της cal_grid_container)
@@ -341,7 +379,7 @@ class CalendarUI:
                     curr_month_btn = self.months_desc[month]
                     
                     # Δημιουργία του κουμπιού
-                    btn = ctk.CTkButton(self.cal_grid_container, text=curr_month_btn, 
+                    btn = ctk.CTkButton(self.cal_grid_container, text=curr_month_btn, fg_color="#E0E0E0", text_color="black", hover_color=SAND_COLOR,
                                         command=lambda m=month: self.select_month(m))
                     # Placement στο grid
                     btn.grid(row=r, column=c, padx=3, pady=3, sticky="we")  
@@ -446,13 +484,11 @@ class CalendarUI:
             # 3. Ορισμός λήξης
             end_dt = datetime.strptime(f"{y}-{m}-{d} {t_end}", "%Y-%m-%d %H:%M")
 
-#--------------------------- 4. Η λήξη πρέπει να είναι μετά την έναρξη----------------------------------------------------
-            #if end_dt <= start_dt:
-            #   messagebox.showwarning("Εσφαλμένη Ώρα", "Η ώρα λήξης πρέπει να είναι μετά την ώρα έναρξης!")
-            #  return
-#-------------------------------------------------------------------------------------------------------------------------
-            
             # 5. Έλεγχος Επικάλυψης
+            if end_dt <= start_dt:
+                messagebox.showwarning("Εσφαλμένη Ώρα", "Η ώρα λήξης πρέπει να είναι μετά την ώρα έναρξης!")
+                return
+            
             if self.db.is_slot_busy(start_dt, end_dt):
                 messagebox.showwarning("Σύγκρουση", "Η συγκεκριμένη ώρα είναι ήδη δεσμευμένη!")
                 return
@@ -482,7 +518,7 @@ class CalendarUI:
         
         if messagebox.askyesno("Επιβεβαίωση", "Θέλετε σίγουρα να διαγράψετε αυτό το γεγονός;"):
             self.db.delete_event(event_id)
-            self.refresh_view()
+            self.clear_entries() # Η clear_entries περιέχει και την refresh_view
 
     def refresh_view(self, day_filter=None):
         """Καθαρίζει και ξαναγεμίζει τον πίνακα, και το λεξικό events_memory με δεδομένα από τη βάση."""
@@ -534,7 +570,6 @@ class CalendarUI:
             end_dt = item_mem["end"]
 
             values = list(self.tree.item(item, 'values'))
-            #current_status = values[5] # Η στήλη Notification 
 
             try:
                 # Περίπτωση 1: Το Event είναι στο Μέλλον (Αντ. Μέτρηση)
@@ -542,24 +577,25 @@ class CalendarUI:
                         diff = start_dt - now
                         hours, remainder = divmod(diff.seconds, 3600)
                         minutes, seconds = divmod(remainder, 60)
-                        values[5] = f"{diff.days}ημ {hours:02d}:{minutes:02d}:{seconds:02d}"
+                        values[4] = f"{diff.days}ημ {hours:02d}:{minutes:02d}:{seconds:02d}"
                         self.tree.item(item, values=values)
                 
                 # Περίπτωση 2: Το Event είναι στο Παρόν (Σε εξέλιξη)
                 elif start_dt <= now <= end_dt:
-                    if values[5] != "Σε εξέλιξη": # Για να μην ενημερώνεται το tree κάθε δευτερόλεπτο άδικα 
-                        values[5] = "Σε εξέλιξη"
+                    if values[4] != "Σε εξέλιξη": # Για να μην ενημερώνεται το tree κάθε δευτερόλεπτο άδικα 
+                        values[4] = "Σε εξέλιξη"
                         self.tree.item(item, values=values)
 
                 # Περίπτωση 3: Το Event ήταν στο παρελθόν (Έλήξε)
                 else:
-                    # Αν το Event είναι ακόμα σε εξέλιξη (Σύμφωνα με το δεδομένο στο λεξικό μας) πρέπει να το αλλάξουμε
-                    if item_mem["status"] == 1:
-                        # Αλλάζουμε το Tree στην οθόνη
-                        values[5] = "Έληξε"
+                    # Αλλάζουμε το Tree στην οθόνη, αν δεν είναι ήδη "Έληξε"
+                    if values[4] != "Έληξε":
+                        values[4] = "Έληξε"
                         self.tree.item(item, values=values)
 
-                        # Ενημερώνουμε τη βάση
+                    # Αν το Event είναι ακόμα σε εξέλιξη σύμφωνα με την μνήμη μας (λεξικό), αυτό σημαίνει οτι μόλις έληξε
+                    # Άρα πρέπει να ενημερώνουμε την βάση με notification 0
+                    if item_mem["status"] == 1:
                         self.db.cursor.execute("UPDATE CalendarApp SET Notification = 0 WHERE ID = ?", (event_db_id,))
                         self.db.conn.commit()
 
